@@ -1,26 +1,60 @@
 package com.example.pmatt.weatherapp;
 
+import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Html;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
+
 import org.w3c.dom.Text;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    TextView cityField, detailsField, currentTemperatureField, humidity_field, pressure_field, weatherIcon, updatedField, stringField, rainField;
-
+    //Variables
+    TextView cityField, detailsField, currentTemperatureField, humidity_field, pressure_field, weatherIcon, updatedField, stringField, rainField,test_field;
+    double longitude, latitude;
     Typeface weatherFont;
+    GoogleApiClient mGoogleApiClient;
+
+    //Onstart of the activity, connect to api
+    protected void onStart() {
+        mGoogleApiClient.connect();
+        super.onStart();
+    }
+
+    //Onstop of activity disconnect
+    protected void onStop() {
+        mGoogleApiClient.disconnect();
+        super.onStop();
+    }
+
+    //This sets the long/lat values on connection to the Google Services API
+    @Override
+    public void onConnected(Bundle connectionHint) {
+        Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        if (mLastLocation != null) {
+            String Latitude = String.valueOf(mLastLocation.getLatitude());
+            String Longitude = String.valueOf(mLastLocation.getLongitude());
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,19 +62,55 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().hide();
         setContentView(R.layout.activity_main);
 
+
         //Declares the font and the fields
         weatherFont = Typeface.createFromAsset(getAssets(), "fonts/weathericons-regular-webfont.ttf");
 
-        cityField = (TextView)findViewById(R.id.city_field);
-        updatedField = (TextView)findViewById(R.id.updated_field);
-        stringField = (TextView)findViewById(R.id.string_field);
-        rainField = (TextView)findViewById(R.id.rain_field);
-        detailsField = (TextView)findViewById(R.id.details_field);
-        currentTemperatureField = (TextView)findViewById(R.id.current_temperature_field);
-        humidity_field = (TextView)findViewById(R.id.humidity_field);
-        pressure_field = (TextView)findViewById(R.id.pressure_field);
-        weatherIcon = (TextView)findViewById(R.id.weather_icon);
+        cityField = (TextView) findViewById(R.id.city_field);
+        updatedField = (TextView) findViewById(R.id.updated_field);
+        stringField = (TextView) findViewById(R.id.string_field);
+        rainField = (TextView) findViewById(R.id.rain_field);
+        detailsField = (TextView) findViewById(R.id.details_field);
+        currentTemperatureField = (TextView) findViewById(R.id.current_temperature_field);
+        humidity_field = (TextView) findViewById(R.id.humidity_field);
+        pressure_field = (TextView) findViewById(R.id.pressure_field);
+        test_field = (TextView) findViewById(R.id.test_field);
+
+        weatherIcon = (TextView) findViewById(R.id.weather_icon);
         weatherIcon.setTypeface(weatherFont);
+
+        String Latitude;
+        String Longitude;
+
+        //If the api client isnt initialized (it shouldnt be), then initialize
+        if (mGoogleApiClient == null) {
+            mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this).addOnConnectionFailedListener(this).addApi(LocationServices.API).build();
+        }
+
+        mGoogleApiClient.connect();
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        if (mLastLocation != null)
+        {
+            Latitude = String.valueOf(mLastLocation.getLatitude());
+            Longitude = String.valueOf(mLastLocation.getLongitude());
+            test_field.setText(Latitude + "||" + Longitude);
+        }
+        else
+        {
+            Latitude = "47.6062";
+            Longitude = "122.3321";
+        }
 
         //Sets fields in the activity
         Function.placeIdTask asyncTask =new Function.placeIdTask(new Function.AsyncResponse() {
@@ -59,56 +129,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        asyncTask.execute("34.000710", "-81.034814"); //  asyncTask.execute("Latitude", "Longitude")
-    }
-/**
-    private boolean isLocationEnabled() {
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        asyncTask.execute(Latitude, Longitude);
+        //asyncTask.execute("34.000710", "-81.034814"); //  asyncTask.execute("Latitude", "Longitude")
     }
 
-    private void showAlert() {
-        final AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setTitle("Enable Location")
-                .setMessage("Your Locations Settings is set to 'Off'.\nPlease Enable Location to " +
-                        "use this app")
-                .setPositiveButton("Location Settings", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface paramDialogInterface, int paramInt) {
-                        Intent myIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        startActivity(myIntent);
-                    }
-                })
-                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface paramDialogInterface, int paramInt) {
-                    }
-                });
-        dialog.show();
+
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
     }
 
-    private final LocationListener locationListenerNetwork = new LocationListener() {
-        public void onLocationChanged(Location location) {
-            longitudeNetwork = location.getLongitude();
-            latitudeNetwork = location.getLatitude();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    longitudeValueNetwork.setText(longitudeNetwork + "");
-                    latitudeValueNetwork.setText(latitudeNetwork + "");
-                    Toast.makeText(MainActivity.this, "Network Provider update", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-        @Override
-        public void onStatusChanged(String s, int i, Bundle bundle) {
-        }
-        @Override
-        public void onProviderEnabled(String s) {
-        }
-        @Override
-        public void onProviderDisabled(String s) {
-        }
-    };
-        **/
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
 }
